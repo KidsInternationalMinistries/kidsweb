@@ -1,211 +1,197 @@
-const objCurrency = {
-    USD:1,
-    CAD:1.36,
-    PHP:58.16,
-    AUD:1.50,
-    NZD:1.64,
-    GBP:0.79,
-    EUR:0.92,
+const urlKIDSWeb = "http://localhost:8080"
+const objCurrencyConv = { USD:1, CAD:1.36, PHP:58.16, AUD:1.50, NZD:1.64, GBP:0.79, EUR:0.92, HKD:7.18 }  
+const objCurrencySym = { USD:"$", CAD:"$", PHP:"₱", AUD:"$", NZD:"$", GBP:"£", EUR:"€", HKD:"$" }  
+const objCurrencyDec = { USD:2, CAD:2, PHP:0, AUD:2, NZD:2, GBP:2, EUR:2, HKD:2 }  
+
+const iMaxDescLen = 40;
+
+function CurrencyDisp(amount,cur)
+{
+  return objCurrencySym[cur] + amount.toFixed(objCurrencyDec[cur]) + " " + cur
+}
+
+function getType(obj)
+{
+  var arr = $(obj).find(".hidden_type").text().split("-");
+  return {type:arr[0],recur:arr[1]}
+}
+
+function getCookie(cname) {
+  let name = cname + "=";
+  let decodedCookie = decodeURIComponent(document.cookie);
+  let ca = decodedCookie.split(';');
+  for(let i = 0; i <ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) == ' ') c = c.substring(1); 
+    if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
   }
-  
-  
-  
-  function getCookie(cname) {
-    let name = cname + "=";
-    let decodedCookie = decodeURIComponent(document.cookie);
-    let ca = decodedCookie.split(';');
-    for(let i = 0; i <ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) == ' ') {
-        c = c.substring(1);
-      }
-      if (c.indexOf(name) == 0) {
-        return c.substring(name.length, c.length);
-      }
-    }
-    return "";
-  }
-  
-  var bInSetAllCurrency = false;
-  
-  function SetAllCurrency(sCur)
-    {    
-      bInSetAllCurrency = true;
-      $(".donateform").each(function(i,obj) {  
-          $(obj).find(".donatecurrency").val(sCur)
-        UpdateForm($(obj).closest(".donateform"))
-      })
-      bInSetAllCurrency = false;
-    }
-  
-  const iMaxDescLen = 40;
-  
-  
-  function UpdateForm(obj,bKeypressOnly)
-  {
-    var bFixedWithCount = false;
-    var bFixedMonthly = false;
-    var strPlural 
-    var strSingular
-    var fAmount
-  
-    const options = {
-      style: 'decimal',  
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    };
-  
+  return "";
+}
+
+var gCur;
+$(window).on('load', function() {
+  gCur = getCookie("Currency")
+  if (gCur=="") gCur = "USD"
+
+  $(".donateform").each(function(i,obj) { 
+    var objType = getType(obj)
+    $(obj).find(".donatefixedfreq").text(objType.recur);
+
+    // Initialize the inputs if they are hidden
+    if (objType.type=="Fixed" || (objType.type=="Item"))  $(obj).find(".donateamount").val( $(obj).find(".hidden_fixedamount"))
+    if (objType.type=="Enter" || (objType.type=="Fixed"))  $(obj).find(".donatecount1").val( "1" )
+
+    // Adjust description length and add (Read More...)
     var strPurposeDesc = $(obj).find(".donatepurposedesc").html();
     if (strPurposeDesc.length > iMaxDescLen)
     {
       strPurposeDesc = strPurposeDesc.substring(0,iMaxDescLen) + "... <u style='color:blue;' >(read more)</u> " 
       $(obj).find(".donatepurposedesc").html(strPurposeDesc);
     }
-  
-  
-    var fAmount = 0;
-    var sCur = obj.find(".donatecurrency").val()
-  
-    var arr = obj.find(".hidden_type").text().split("-");
-    var type = arr[0]
-    var recur = arr[1]
-  
-    if ( (type=="Fixed") || (type=="Item") ) {
-      var strAmount = obj.find(".hidden_fixedamount").text();
-      fAmount = strAmount * objCurrency[sCur]
-  //    bFixedWithCount = obj.find(".hidden_flag_fixedwithcount").text()=="1"
-  //    bFixedMonthly = obj.find(".hidden_flag_fixedmonthly").text()=="1"
-  
-      if (!bKeypressOnly)
-      { 
-        var objFreq = obj.find(".donatefixedfreq")
-        objFreq.css("display", "block");
-        objFreq.text = recur;
-  
-        strPlural = obj.find(".hidden_fixedplural").text();
-        strSingular = obj.find(".hidden_fixedsingular").text();
     
-        $(obj).find(".donatefixedpricing1").css("display", "block");
-        $(obj).find(".donatefixedpricing2").css("display", (type=="Item")?"flex":"none");
-        
-        var strFixedText = Number(fAmount).toLocaleString('en-US', {style:"currency", currency:sCur}) ;
-        if (type=="Item") strFixedText += " / " + strSingular
-        if (recur == "Month") strFixedText += " / " + recur
-      
-        var strDonateCountText = "Number of " + strPlural
-    
-        obj.find(".donatefixedtext").text(strFixedText)
-        obj.find(".donatecounttext").text(strDonateCountText)
-      }
-    }
-    else
-    {
-      obj.find(".donategeneralpricing").css("display", "flex");
-      if (recur=="Choice") 
-        $(obj).find(".donatefrequency").css("display","block")
-      else
-        if (recur=="Month")
-        {
-          // set freq to Monthly and hide freq and display "/Month"
-          $(obj).find(".donatefrequency").val("Monthly") 
-          $(obj).find(".donatefreqdiv").css("display","block")
-          $(obj).find(".donatefrequencymonth").css("display","block")
-        }
-      var strAmount = $(obj).find(".donateamount").val()
-      fAmount = Number(strAmount)
-      if (!bKeypressOnly)
-      {
-        var strOldCurrency = $(obj).find(".hidden_currency").text()
-        if (strAmount != "")
-        {
-          fAmount = ((Number(strAmount) / objCurrency[strOldCurrency]) * objCurrency[sCur])
-          fAmount = Math.round(fAmount*100)/100
-          $(obj).find(".donateamount").val(fAmount.toFixed(2))
-        }
-        $(obj).find(".hidden_currency").text(sCur)
-      }
-    }
-  
-    var iCount = 1
-    if (type=="Item")  iCount = Number(obj.find(".donatecount1").val())
-  
-    if ( (fAmount != 0) && (iCount != 0) )
-    {
-      $(obj).find(".donatedisableoncebutton").css("display","none") 
-      $(obj).find(".donatedisableaddtocartbutton").css("display","none") 
-      $(obj).find(".changecurrency").css("display","block") 
-      $(obj).find(".donatecurrency").css("display","none") 
-  
-   
-      strFee = "Add " + (iCount * fAmount * .05).toLocaleString('en-US', {style:"currency", currency:sCur}) +  " to cover transaction fees"
-      $(obj).find(".donatefeestext").text(strFee)
-  
-      var fTotal = fAmount * iCount;
-      if ($(obj).find(".donatefeescheckbox").prop("checked")) fTotal = fTotal * 1.05;
-  
-      strTotal = "Total : " + fTotal.toLocaleString('en-US', {style:"currency", currency:sCur})
-      if (recur) strTotal += " / Month"
-     
-      $(obj).find(".donatetotaltext").text(strTotal)
-      $(obj).find(".donatefees").css("display","block")
-  
-      UpdateURL(obj)
-  
+    // Handle fixed and item changes
+    if (objType.type=="Fixed" || (objType.type=="Item")) {
+      $(obj).find(".donatefixedpricing1").css("display", "block");
+      $(obj).find(".donatefixedpricing2").css("display", (objType.type=="Item")?"flex":"none");
+      $(obj).find(".donatefixedfreq").css("display", "block");
      }
-    else
+     else
+     {
+        // Handle changes for varibale amount
+        $(obj).find(".donategeneralpricing").css("display", "flex");
+        if (objType.recur=="Choice") 
+          $(obj).find(".donatefrequency").css("display","block")
+        else
+          if (objType.recur=="Month")
+          {
+            // set freq to Monthly and hide freq and display "/Month"
+            $(obj).find(".donatefrequency").val("Monthly") 
+            $(obj).find(".donatefreqdiv").css("display","block")
+            $(obj).find(".donatefrequencymonth").css("display","block")
+          }
+        }
+      
+      $(obj).find(".donatecurrency").val(gCur) 
+      FixCurrencyText(obj) 
+ 
+      })
+});  
+
+$(".donatecurrency").change(function(){
+  var top = $(this).closest('.donateform');
+  var sCur = $(top).find(".donatecurrency").val()  
+
+  document.cookie = "Currency=" + sCur + "; path=/; expires=Thu, 18 Dec 2100 12:00:00 UTC";
+
+ // FixCurrencyText(top) 
+  // Handle currency change for each form
+  $(".donateform").each(function(i,obj){
+    $(obj).find(".donatecurrency").val(sCur)
+    FixCurrencyText(obj)
+  })
+})
+
+
+
+function FixCurrencyText(obj)
+{
+  var objType = getType(obj)
+  var sCur = $(obj).find(".donatecurrency").val()  
+  var sCurOld = $(obj).find(".hidden_currency").text();
+  if (sCurOld=="") sCurOld = "USD"
+  $(obj).find(".hidden_currency").text(sCur);
+
+
+  strPlural = $(obj).find(".hidden_fixedplural").text();
+  strSingular = $(obj).find(".hidden_fixedsingular").text();
+ 
+  if ( (objType.type=="Enter") ) {
+    fAmount = Number($(obj).find(".donateamount").val())
+    $(obj).find(".donatecount1").val("1")
+    if (fAmount > 0)
     {
-      $(obj).find(".donatefees").css("display","none")
-      $(obj).find(".donatetotaltext").text("Enter required fields first.")
-      $(obj).find(".donatedisableoncebutton").css("display","block") 
-      $(obj).find(".donatedisableaddtocartbutton").css("display","block") 
-  
-     $(obj).find(".changecurrency").css("display","none") 
-       
+      fAmount = ((fAmount / objCurrencyConv[sCurOld]) * objCurrencyConv[sCur])
+      fAmount = Math.round(fAmount*100)/100
+      $(obj).find(".donateamount").val(fAmount)
     }
-  
   }
-  
-  $(window).on('load', function() {
-    sCur = getCookie("Currency") 
-    if (sCur!="") SetAllCurrency(sCur)
-  
-  //  $(".donateform").each(function(i,obj) { 
-  //    var strAmountObj = $(this).find("hidden_fixedamount")
-  //    UpdateForm($(this))  
-  //  })
-  
-  });  
+  else
+  {
+    var fAmount = Number($(obj).find(".hidden_fixedamount").text()) * objCurrencyConv[sCur]
+    $(obj).find(".donateamount").val(fAmount)
+    var strFixedText = CurrencyDisp(fAmount,sCur) ;
+    if (objType.type=="Item") strFixedText += " / " + strSingular
+    if (objType.recur == "Month") strFixedText += " / " + objType.recur
+    var strDonateCountText = "Number of " + strPlural
+    $(obj).find(".donatefixedtext").text(strFixedText)
+    $(obj).find(".donatecounttext").text(strDonateCountText)
+  }
+
+  var iCount = 1
+  if (objType.type=="Item")  
+    iCount = Number($(obj).find(".donatecount1").val())
+
+  if ( (fAmount != 0) && (iCount != 0) )
+  {
+    $(obj).find(".donatedisableoncebutton").css("display","none") 
+    $(obj).find(".donatedisableaddtocartbutton").css("display","none") 
+    $(obj).find(".changecurrency").css("display","block") 
+    $(obj).find(".donatecurrency").css("display","none") 
+ 
+    strFee = "Add " + CurrencyDisp(iCount * fAmount * .05,sCur) +  " to cover transaction fees"
+    $(obj).find(".donatefeestext").text(strFee)
+
+    var fTotal = fAmount * iCount;
+    if ($(obj).find(".donatefeescheckbox").prop("checked")) fTotal = fTotal * 1.05;
+
+    strTotal = "Total : " +  CurrencyDisp(fTotal,sCur)
+    if ( (objType.recur=="Month") || ( (objType.recur=="Choice") && $(obj).find(".donatefrequency").val() == "Month")) 
+      {
+        strTotal += " / Month"
+        $(obj).find(".donatefrequency").val("Month")
+      }
+    else
+      $(obj).find(".donatefrequency").val("OneTime")
     
-  $(".donatecurrency").change(function()
-    {
-      if (bInSetAllCurrency) return;
-  
-      var sCur = $(this).val();
-      document.cookie = "Currency=" + sCur + "; path=/; expires=Thu, 18 Dec 2100 12:00:00 UTC";
-      SetAllCurrency(sCur)
-   })
-  
+    $(obj).find(".donatetotaltext").text(strTotal)
+    $(obj).find(".donatefees").css("display","block")
+   }
+  else
+  {
+    $(obj).find(".donatefees").css("display","none")
+    $(obj).find(".donatetotaltext").text("Enter required fields first.")
+    $(obj).find(".donatedisableoncebutton").css("display","block") 
+    $(obj).find(".donatedisableaddtocartbutton").css("display","block") 
+
+   $(obj).find(".changecurrency").css("display","none") 
+     
+  }
+}
+
+
     $(".donatefeescheckbox").change(function()
     {
       var top = $(this).closest('.donateform');
-      UpdateForm(top,true)
+      FixCurrencyText(top)
     })
   
     $(".donateamount").keyup(function(){
       var top = $(this).closest('.donateform');
-      UpdateForm(top,true)
+      FixCurrencyText(top)
   })
   
   $(".donatecount1").keyup(function(){
     var top = $(this).closest('.donateform');
-    UpdateForm(top,true)
+    FixCurrencyText(top)
+  })
+  
+  $(".donatefrequency").change(function(){
+    var top = $(this).closest('.donateform');
+    FixCurrencyText(top)
   })
   
   $(".donatepurposedesc").click(function(){
     var top = $(this).closest('.donateform');
-    PostToStripe(top)
-    return;
-  
   
     if ($(top).find(".donatepurposedesc").html().length > iMaxDescLen )
     {
@@ -234,57 +220,52 @@ const objCurrency = {
     var top = $(this).closest('.donateform');
     $(top).find(".donateaboutlist").css("display","none") 
   })
-  
+
+  $(".donateonce").click(function(){
+    var top = $(this).closest('.donateform');
+    PostToStripe( top )
+  })
+
   function PostToStripe(obj)
     {
-  
-      var strPurpose = obj.find(".donatepurpose").text();
-      var strProductId = obj.find(".hidden_productid").text();
-      var strPurposeDesc = obj.find(".donatepurposedesc").text();
-  //    var strNote = obj.find(".donatetextnode:first").val();
-      var numAmount = Number(obj.find(".donateamount").val());
-      var strCurrency = obj.find(".donatecurrency").val();
-      var bFee = obj.find(".donatefeescheckbox").is(":checked");
-      var strsrcset = obj.find(".donateimage").attr("srcset")
-      var strRecurring = "Monthly"
-      
-      if (bFee) numAmount = numAmount * 1.05;
-      
-      var arr = strsrcset.split(" ")
-      var strImage = arr[0];
-  
-      console.log("Purpose:" + strPurpose)
-      console.log("ProductId:" + strProductId)
-      console.log("PurposeDesc:" + strPurposeDesc)
-      console.log("Amount:" + numAmount);
-      console.log("Currency:" + strCurrency);
-      console.log("Image:" + strImage); 
-  
-      var postData = {purpose:strPurpose,
-                      productid:strProductId,
-                      productdesc:strPurposeDesc,
-                      amount: numAmount,
-                      currency: strCurrency,
-                      image: strImage
-                    }
+      var strImage 
+      var srcset = obj.find(".donateimage").attr("srcset")
+      if (srcset==undefined)
+        strImage = obj.find(".donateimage").attr("src");
+      else
+      {
+        var arr = split(srcset," ")
+        strImage = arr[0]
+      }  
+
+      var postData = [{strPurpose:obj.find(".donatepurpose").text(),
+                      strProductId:obj.find(".hidden_productid").text(),
+                      strPurposeDesc:obj.find(".hidden_purposedesc").text(),
+                      numAmount: Number(obj.find(".donateamount").val()),
+                      strCurrency: obj.find(".donatecurrency").val(),
+                      strImage: strImage,
+                      strRecurring:obj.find(".donatefrequency").val(),
+                      bFee:obj.find(".donatefeescheckbox").is(":checked"),
+                      iCount:Number(obj.find(".donatecount1").val())
+                    }]
+      if (postData.iCount == 0) postData.iCount = 1;
    
-  
-     $.ajax({
-        url: 'https://8080-cs-395420509800-default.cs-asia-east1-vger.cloudshell.dev',
-        method: 'POST',
-        crossDomain: true,
-        "headers": {
-          "accept": "application/json",
-          "Access-Control-Allow-Origin":"*"
+      $.ajax({
+        url: urlKIDSWeb + '/checkout', 
+        type: 'POST',
+        data: JSON.stringify(postData),
+        contentType: 'application/json',
+        dataType: 'json',
+        success: function(response) {
+
+          window.open(response.url);
+            console.log('Success:', response);
         },
-  
-        success: function(data) {
-            console.log("Success:" + data)
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching data:', textStatus, errorThrown);
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
         }
-      })
+    });
+      }
   
   
   /*      fetch("https://8080-cs-395420509800-default.cs-asia-east1-vger.cloudshell.dev/", {
@@ -310,12 +291,8 @@ const objCurrency = {
   //      console.log(" https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms)
   //   $("#donationAmount").prop('value', 'One moment...');
   //     window.location = " https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms
-      
-      
     
-    }
-    
-    
+/*    
     function UpdateURL(obj)
     {
   
@@ -367,7 +344,8 @@ const objCurrency = {
     
     }  
   
-    
+  */
+
   /*
   
     var sRecurType, sPriceType, sCountType;
