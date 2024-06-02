@@ -133,7 +133,7 @@ app.post('/checkout', async (req, res) => {
           var oPrice = await stripe.prices.create(create_priece);
           
           arrPriceId.push( {price: oPrice.id,quantity: data.iCount})
-        }
+       }
       }
     // Create a checkout session
 
