@@ -20,30 +20,42 @@ function getType(obj)
 }
 
 
-function getCookieObj(cname) {
+function getCookie(cname) {
   let name = cname + "=";
   let decodedCookie = decodeURIComponent(document.cookie);
   let ca = decodedCookie.split(';');
   for(let i = 0; i <ca.length; i++) {
     let c = ca[i];
-    while (c.charAt(0) == ' ') c = c.substring(1); 
-    try { if (c.indexOf(name) == 0) return JSON.parse(c.substring(name.length, c.length)); } catch { return undefined}
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
   }
-  return undefined;
+  return "";
 }
 
-function setCookieObj(cname,objCookie)
+function setCookie(cname,strCookie)
 {
-  document.cookie = cname + "=" + JSON.stringify(objCookie) + "; path=/; expires=Thu, 18 Dec 2100 12:00:00 UTC";
+  document.cookie = cname + "=" + strCookie + "; expires=Thu, 18 Dec 2100 12:00:00 UTC; path=/";
+  console.log("set - " + strCookie)
 }
 
-function refreshCart() {  if (objCart == undefined) { objCart = getCookieObj("ShoppingCart"); if (objCart == undefined) objCart = [] }}
+function refreshCart() { 
+   if (objCart == undefined) 
+      { var strCart = getCookie("ShoppingCart"); 
+
+        try {objCart = JSON.parse(strCart)} catch {objCart = []};
+      }
+   console.log(objCart)
+}
 
 function AddToCart(objItem)
 {
   refreshCart();
   objCart.push(objItem)
-  setCookieObj("ShoppingCart",objCart)
+  setCookie("ShoppingCart",JSON.stringify(objCart))
 }
 
 function GetCart()
@@ -54,63 +66,115 @@ function GetCart()
 
 function InitCheckoutPage()
 {
-  GetCart();
+  refreshCart();
 
-  var objItem = $(".checkoutitem")
-  for(var i = 1; i < objCart.length; i++)
-    objItem.clone().appendTo(".checkoutitems");
+  if (objCart.length==0)
+    {
+      $(".checkoutloadingcart").css("display", "none");
+      $(".checkoutcartempty").css("display","block")
+      setCookie("ShoppingCart",JSON.stringify([]))
+    }
+  else
+  {
 
-  $(".checkoutitem").each( function( index, objItem) {
-    $( objItem ).find(".checkoutimage").attr("srcset", "")
-    $( objItem ).find(".checkoutimage").attr("src", objCart[index].strImage)
-    $( objItem ).find(".checkoutpurpose").text(objCart[index].strPurpose)
-    $( objItem ).find(".checkoutpurposedesc").text(objCart[index].strPurposeDesc)
+    var objItem = $(".checkoutitem")
+    for(var i = 1; i < objCart.length; i++)
+      objItem.clone().appendTo(".checkoutitems");
 
-    var strPrice = ""
-    if (objCart[index].iCount > 1) strPrice = "( " + objCart[index].iCount + " @ " +  CurrencyDisp(objCart[index].numAmount,gCur) + ") </br>"
-    strPrice = strPrice + CurrencyDisp((objCart[index].numAmount * objCart[index].iCount),gCur)
-    
-    if (objCart[index].strRecurring == "Month") strPrice = strPrice + " / Month"
-    $( objItem ).find(".checkoutpricedesc").html(strPrice)
-  });
+    objItemAll = $(".checkoutitem")
+    objItemAll.each( function( index, objItem) {
+      $( objItem ).find(".checkoutimage").attr("srcset", "")
+      $( objItem ).find(".checkoutimage").attr("src", objCart[index].strImage)
+      $( objItem ).find(".checkoutpurpose").text(objCart[index].strPurpose)
+      $( objItem ).find(".checkoutpurposedesc").text(objCart[index].strPurposeDesc)
+      var arrType = objCart[index].strType.split("-")
 
+      var strPrice = ""
+      if (arrType[0]=="Items")
+        {
+          var arr = objCart[index].strFixed_SingularPlural.split("-")
+          strPrice = objCart[index].numAmount.toFixed() + "/" + arr[0] + "/" + objCart[index].strRecurring + "<br>"
+          strPrice += objCart[index].iCount + " " + objCart[index].arr[1] + "<br>"      
+          strPrice += "Total:" + CurrencyDisp((objCart[index].numAmount * objCart[index].iCount),gCur)
+          
+      /*
+          $45/Student/month
+          5 students
+          Total:$135.00 / month
+      */
+        }
+      else
+      {
+        strPrice += CurrencyDisp(objCart[index].numAmount,gCur)
+        /*
+          $135 / month
+        */
+      }
+      if (objCart[index].strRecurring == "Monthly") strPrice += " / Month"
+
+
+      $( objItem ).find(".checkoutpricedesc").html(strPrice)
+
+      if (index == objItemAll.length-1)
+        {
+          $(".checkoutloadingcart").css("display","none")
+          $(".checkoutmain").css("display","block")
+        }
+    });
+  }
 
 }
 
 
 var gCur;
 $(window).on('load', function() {
+  objCart = undefined;
   urlKIDSWeb = $("#webflow_js").attr("src").replace("/public/webflow.js","")
   console.log(urlKIDSWeb)
 
-  var objCurrency = getCookieObj("Currency")
-  if (objCurrency == undefined) objCurrency = {currency:"USD"}
-  gCur = objCurrency.currency;
+  var strCurrency = getCookie("Currency")
+  if (strCurrency == "") strCurrency = "USD"
+  gCur = strCurrency;
 
   if (window.location.pathname == "/checkout")
     {
       InitCheckoutPage() 
       
-      $(".checkoutbutton").click(function()
+      $("#Button_Checkout").click(function()
       {
-        setCookieObj("ShoppingCart",[])
-  
+        Donate('/checkout',objCart)
+        setCookie("ShoppingCart",[])
+        window.location.replace("http://" + window.location.hostname + "/donatethankyou.html");
+        
       })
-  
+
+      $("#Button_RemoveAll").click(function()
+      {
+        setCookie("ShoppingCart",[])
+        $(".checkoutloadingcart").css("display", "none");
+        $(".checkoutcartempty").css("display","block")
+        $(".checkoutmain").css("display","block")
+        })
+
       return;
     }
 
 
     $(".donateform").each(function(i,obj) { 
       var objType = getType(obj)
-      $(obj).find(".donatefixedfreq").text(objType.recur);
+  //    $(obj).find(".donatefixedfreq").text(objType.recur);
+      var objSingularPlural;
 
       // Initialize the inputs if they are hidden
-      if (objType.type=="Fixed" || (objType.type=="Item"))  $(obj).find(".donateamount").val( $(obj).find(".hidden_fixedamount"))
-      if (objType.type=="Enter" || (objType.type=="Fixed"))  $(obj).find(".donatecount1").val( "1" )
+      if (objType.type=="Fixed")  $(obj).find(".donateamount").val( $(obj).find(".hidden_fixedamount"))
+      var strSingularPlural = $(obj).find(".hidden_fixed_singular-plural").text()
+      if (strSingularPlural != "") 
+          objSingularPlural = strSingularPlural.split("-")
+      else
+         $(obj).find(".donatecount1").val( "1" )
 
       // Adjust description length and add (Read More...)
-      var strPurposeDesc = $(obj).find(".donatepurposedesc").html();
+      var strPurposeDesc = $(obj).find(".donatepurposedescfull").html();
       if (strPurposeDesc.length > iMaxDescLen)
       {
         strPurposeDesc = strPurposeDesc.substring(0,iMaxDescLen) + "... <u style='color:blue;' >(read more)</u> " 
@@ -118,9 +182,9 @@ $(window).on('load', function() {
       }
       
       // Handle fixed and item changes
-      if (objType.type=="Fixed" || (objType.type=="Item")) {
+      if (objType.type=="Fixed") {
         $(obj).find(".donatefixedpricing1").css("display", "block");
-        $(obj).find(".donatefixedpricing2").css("display", (objType.type=="Item")?"flex":"none");
+        $(obj).find(".donatefixedpricing2").css("display", (objSingularPlural!==undefined)?"flex":"none");
         $(obj).find(".donatefixedfreq").css("display", "block");
       }
       else
@@ -148,7 +212,7 @@ $(window).on('load', function() {
 $(".donatecurrency").change(function(){
   var top = $(this).closest('.donateform');
   var sCur = $(top).find(".donatecurrency").val()  
-  setCookieObj("Curency",{currency: sCur})
+  setCookie("Curency",sCur)
 
  // FixCurrencyText(top) 
   // Handle currency change for each form
@@ -166,10 +230,15 @@ function FixCurrencyText(obj)
   if (sCurOld=="") sCurOld = "USD"
   $(obj).find(".hidden_currency").text(sCur);
 
+  var strSingularPlural = $(obj).find(".hidden_fixed_singular-plural").text()
+  var strSingular,strPlural;
+  if (strSingularPlural != "") 
+    {
+      var arr = strSingularPlural.split("-");
+      strPlural = arr[1];
+      strSingular = arr[0];
+    }
 
-  strPlural = $(obj).find(".hidden_fixedplural").text();
-  strSingular = $(obj).find(".hidden_fixedsingular").text();
- 
   if ( (objType.type=="Enter") ) {
     fAmount = Number($(obj).find(".donateamount").val())
     $(obj).find(".donatecount1").val("1")
@@ -185,15 +254,15 @@ function FixCurrencyText(obj)
     var fAmount = Number($(obj).find(".hidden_fixedamount").text()) * objCurrencyConv[sCur]
     $(obj).find(".donateamount").val(fAmount)
     var strFixedText = CurrencyDisp(fAmount,sCur) ;
-    if (objType.type=="Item") strFixedText += " / " + strSingular
-    if (objType.recur == "Month") strFixedText += " / " + objType.recur
+    if (strSingular!=undefined) strFixedText += " / " + strSingular
+    if (objType.recur == "Monthly") strFixedText += " / Month"
     var strDonateCountText = "Number of " + strPlural
     $(obj).find(".donatefixedtext").text(strFixedText)
     $(obj).find(".donatecounttext").text(strDonateCountText)
   }
 
   var iCount = 1
-  if (objType.type=="Item")  
+  if (strSingular!=undefined)  
     iCount = Number($(obj).find(".donatecount1").val())
 
   if ( (fAmount != 0) && (iCount != 0) )
@@ -210,10 +279,10 @@ function FixCurrencyText(obj)
     if ($(obj).find(".donatefeescheckbox").prop("checked")) fTotal = fTotal * 1.05;
 
     strTotal = "Total : " +  CurrencyDisp(fTotal,sCur)
-    if ( (objType.recur=="Month") || ( (objType.recur=="Choice") && $(obj).find(".donatefrequency").val() == "Month")) 
+    if ( (objType.recur=="Monthly") || ( (objType.recur=="Choice") && $(obj).find(".donatefrequency").val() == "Monthly")) 
       {
         strTotal += " / Month"
-        $(obj).find(".donatefrequency").val("Month")
+        $(obj).find(".donatefrequency").val("Monthly")
       }
     else
       $(obj).find(".donatefrequency").val("OneTime")
@@ -281,10 +350,12 @@ function FixCurrencyText(obj)
     $(top).find(".donatecurrency").css("display","block") 
   })
   
+  /*
   $(".donateaboutdropdown").click(function(){
     var top = $(this).closest('.donateform');
     $(top).find(".donateaboutlist").css("display","none") 
   })
+*/
 
   $(".donateonce").click(function(){
     var top = $(this).closest('.donateform');
@@ -296,6 +367,25 @@ function FixCurrencyText(obj)
     DonateOrAddToCart( top , "addtocart")
   })
 
+
+  function Donate(method,postData)
+  {
+    $.ajax({
+      url: urlKIDSWeb + method, 
+      type: 'POST',
+      data: JSON.stringify(postData),
+      contentType: 'application/json',
+      dataType: 'json',
+      success: function(response) {
+
+        window.open(response.url);
+          console.log('Success:', response);
+      },
+      error: function(xhr, status, error) {
+          console.error('Error:', error);
+      }
+    });
+  }
 
   function DonateOrAddToCart(obj,donateType)
     {
@@ -311,11 +401,10 @@ function FixCurrencyText(obj)
       
       var item = 
         { strPurpose:obj.find(".donatepurpose").text(),
-          strType:obj.find(".hidden_producttype").text(),
+          strType:obj.find(".hidden_type").text(),
           strProductId:obj.find(".hidden_productid").text(),
-          strPlural:obj.find(".hidden_fixedplural").text(),
-          strSingular:obj.find(".hidden_fixedsingular").text(),
-          strPurposeDesc:obj.find(".hidden_purposedesc").text(),
+          strFixed_SingularPlural:obj.find(".hidden_fixed_singular-plural").text(),
+          strPurposeDesc:obj.find(".donatepurposedescfull").text().substring(0,200),
           numAmount: Number(obj.find(".donateamount").val()),
           strCurrency: obj.find(".donatecurrency").val(),
           strImage: strImage,
@@ -326,25 +415,10 @@ function FixCurrencyText(obj)
 
     if (donateType=="donate")
       {
-        var postData = []
-        postData.push(item)
-        if (postData.iCount == 0) postData.iCount = 1;
-    
-        $.ajax({
-          url: urlKIDSWeb + '/checkout', 
-          type: 'POST',
-          data: JSON.stringify(postData),
-          contentType: 'application/json',
-          dataType: 'json',
-          success: function(response) {
 
-            window.open(response.url);
-              console.log('Success:', response);
-          },
-          error: function(xhr, status, error) {
-              console.error('Error:', error);
-          }
-        });
+        var postData = []
+        postData.push(item)    
+        Donate('/checkout',postData)
       }
 
       if (donateType == "addtocart")

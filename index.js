@@ -60,9 +60,9 @@ app.post('/checkout', async (req, res) => {
     console.log(req.body); 
     var arr = req.body;
 
+    var arrPriceId = []
     for(var i=0; i<arr.length;i++)
       {
-        var arrPriceId = []
         data = arr[i]
          if (data.strRecurring == "Monthly") sessionmode = "subscription"
 
@@ -71,7 +71,7 @@ app.post('/checkout', async (req, res) => {
               const existingProduct = await stripe.products.retrieve(data.strProductId);
               console.log('Product already exists - updating details', existingProduct);
 
-              await stripe.products.update(data.strProductId, { name: data.strProduct,  description:data.strProductDesc, images: [data.strImage],});
+              await stripe.products.update(data.strProductId, { name: data.strPurpose,  description:data.strPurposeDesc, images: [data.strImage],});
             } 
             catch (error)
             {
@@ -107,14 +107,14 @@ app.post('/checkout', async (req, res) => {
         }
 
         var priceId = ""
-        for(var i=0; i < prices.length; i++)
+        for(var i2=0; i2 < prices.length; i2++)
         {
             if ( 
-                (prices[i].currency == data.strCurrency.toLowerCase()) && 
-                (stripeprice == prices[i].unit_amount)  
+                (prices[i2].currency == data.strCurrency.toLowerCase()) && 
+                (stripeprice == prices[i2].unit_amount)  
                 
             )
-            { arrPriceId.push( {price: prices[i].id,quantity: data.iCount} )
+            { arrPriceId.push( {price: prices[i2].id,quantity: data.iCount} )
               bFound = true;
               break;
             }
