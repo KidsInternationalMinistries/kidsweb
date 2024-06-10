@@ -15,6 +15,7 @@
 
 const express = require('express');
 const bodyParser = require('body-parser');
+
 const app = express();
 const cors = require('cors') //- this makes it fail to deploy
 app.use(cors()) // this makes it fail to deploy
@@ -52,18 +53,79 @@ app.post('/checkout' ,async (req, res) => {
 })
 */
 
+app.get('/test', (req, res) => {
+  res.type('text/plain'); // Set the content type to plain text
+  res.send('Hello, this is plain text!'); // Send the plain text response
+});
+
+
+app.get('/stripe-get', async (req, res) => {
+
+  try{
+    res.set('Content-Type', 'text/plain')
+    const arrPI = await stripe.paymentIntents.list()
+
+    res.write("Amount\r\n")
+
+    for(var i = 0; i<arrPI.data.length; i++)
+      {
+        res.write(arrPI.data[i].amount + "\r\n")
+
+      }
+
+  }
+  catch(err)
+  {
+      console.log(err)
+  }
+
+  res.end();
+});
+
+
+
+app.get('/session-status', async (req, res) => {
+  var strReceipt
+  try{
+    const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
+    if (session.payment_intent != null)
+      {
+        const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+        const latest_charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
+        strReceipt = latest_charge.receipt_url
+      }
+    else
+      {
+        const invoice = await stripe.invoices.retrieve(session.invoice);
+        strReceipt = invoice.hosted_invoice_url
+
+      }
+    res.send({
+      status: session.status,
+      customer_email: session.customer_details.email,
+      receipt_url:strReceipt
+    });
+  }
+  catch(err)
+  {
+
+  }
+});
+
 
 app.post('/checkout', async (req, res) => {
  var sessionmode = "payment"
 
   try {
-    console.log(req.body); 
-    var arr = req.body;
+
+    var arr = req.body.arrCart;
+    var passthrough = {metadata:{}}
 
     var arrPriceId = []
     for(var i=0; i<arr.length;i++)
       {
         data = arr[i]
+        passthrough.metadata["item-" + i]  = JSON.stringify({id:data.strProductId,purpose:data.strPurpose,recur:data.strRecurring,amount:data.numAmount,coverFee:data.bFee,count:data.iCount})
          if (data.strRecurring == "Monthly") sessionmode = "subscription"
 
           /// Create product if it does not exist
@@ -137,14 +199,22 @@ app.post('/checkout', async (req, res) => {
       }
     // Create a checkout session
 
+   
     checkout = {
+      ui_mode: 'embedded',
       mode: sessionmode, //recurring?"subscription":"payment",
       line_items: arrPriceId,
-      success_url: 'https://kidsim.org', // Replace with your success URL
-      cancel_url: 'https://kidsim.org', // Replace with your cancel URL
+      return_url: req.body.return_url + "?session_id={CHECKOUT_SESSION_ID}",
+//      subscription_data: {metadata:{abc:"abc"}}
 //      client_reference_id: customText, // Add the custom text as client reference ID
 //      custom_text: customText,
     }
+
+    if (sessionmode!="subscription")
+      checkout.payment_intent_data = passthrough
+    else
+      checkout.subscription_data = passthrough
+      
 
 //    if (sessionmode=="payment") 
 //      checkout.payment_intent_data = {metadata: { abd:"test"}}
@@ -155,7 +225,7 @@ app.post('/checkout', async (req, res) => {
     
 
 
-     res.json({url:session.url});
+     res.json({client_secret:session.client_secret});
 
   } catch (error) {
     console.error('Error:', error);

@@ -1,4 +1,9 @@
-var urlKIDSWeb
+var urlKIDSWeb;
+
+urlKIDSWeb = document.getElementById("webflow_js").src.replace("/public/webflow.js","")
+console.log(urlKIDSWeb)
+
+var gCur;
 //const urlKIDSWeb = "http://localhost:8080"
 const objCurrencyConv = { USD:1, CAD:1.36, PHP:58.16, AUD:1.50, NZD:1.64, GBP:0.79, EUR:0.92, HKD:7.18 }  
 const objCurrencySym = { USD:"$", CAD:"$", PHP:"₱", AUD:"$", NZD:"$", GBP:"£", EUR:"€", HKD:"$" }  
@@ -6,7 +11,7 @@ const objCurrencyDec = { USD:2, CAD:2, PHP:0, AUD:2, NZD:2, GBP:2, EUR:2, HKD:2 
 
 var objCart;
 
-const iMaxDescLen = 40;
+const iMaxDescLen = 110;
 
 function CurrencyDisp(amount,cur)
 {
@@ -18,7 +23,6 @@ function getType(obj)
   var arr = $(obj).find(".hidden_type").text().split("-");
   return {type:arr[0],recur:arr[1]}
 }
-
 
 function getCookie(cname) {
   let name = cname + "=";
@@ -40,6 +44,7 @@ function setCookie(cname,strCookie)
 {
   document.cookie = cname + "=" + strCookie + "; expires=Thu, 18 Dec 2100 12:00:00 UTC; path=/";
   console.log("set - " + strCookie)
+
 }
 
 function refreshCart() { 
@@ -48,19 +53,27 @@ function refreshCart() {
 
         try {objCart = JSON.parse(strCart)} catch {objCart = []};
       }
-   console.log(objCart)
+      $("#NavCartCount").text(objCart.length)
+      console.log(objCart)
 }
 
-function AddToCart(objItem)
+function AddToCartCookie(objItem)
 {
   refreshCart();
   objCart.push(objItem)
+   SaveCart();
+  $("#NavCartCount").text(objCart.length)
+}
+
+function SaveCart()
+{
   setCookie("ShoppingCart",JSON.stringify(objCart))
 }
 
 function GetCart()
 {
   refreshCart();
+  $("#NavCartCount").text(objCart.length)
   return objCart;
 }
 
@@ -126,101 +139,67 @@ function InitCheckoutPage()
 }
 
 
-var gCur;
-$(window).on('load', function() {
-  objCart = undefined;
-  urlKIDSWeb = $("#webflow_js").attr("src").replace("/public/webflow.js","")
-  console.log(urlKIDSWeb)
 
-  var strCurrency = getCookie("Currency")
-  if (strCurrency == "") strCurrency = "USD"
-  gCur = strCurrency;
-
-  if (window.location.pathname == "/checkout")
-    {
-      InitCheckoutPage() 
-      
-      $("#Button_Checkout").click(function()
-      {
-        Donate('/checkout',objCart)
-        setCookie("ShoppingCart",[])
-        window.location.replace("http://" + window.location.hostname + "/donatethankyou.html");
-        
-      })
-
-      $("#Button_RemoveAll").click(function()
-      {
-        setCookie("ShoppingCart",[])
-        $(".checkoutloadingcart").css("display", "none");
-        $(".checkoutcartempty").css("display","block")
-        $(".checkoutmain").css("display","block")
-        })
-
-      return;
+ 
+function StripeDonate(postData)
+{
+  objData = {arrCart:postData, return_url: "https://" + window.location.hostname + "/stripe/return"}
+  $.ajax({
+    url: urlKIDSWeb + '/Checkout', 
+    type: 'POST',
+    data: JSON.stringify(objData),
+    contentType: 'application/json',
+    dataType: 'json',
+    success: function(response) {
+      console.log('Success:', response);
+      window.location.replace("https://" + window.location.hostname + "/stripe/checkout?" + response.client_secret)
+    },
+    error: function(xhr, status, error) {
+        console.error('Error:', error);
     }
+  });
+}
+
+function DonateGetCurrent(obj)
+{
+var strImage 
+var srcset = obj.find(".donateimage").attr("srcset")
+if (srcset==undefined)
+  strImage = obj.find(".donateimage").attr("src");
+else
+{
+  var arr = srcset.split(" ")
+  strImage = arr[0]
+}  
+
+var item = 
+  { strPurpose:obj.find(".donatepurpose").text(),
+    strType:obj.find(".hidden_type").text(),
+    strProductId:obj.find(".hidden_productid").text(),
+    strFixed_SingularPlural:obj.find(".hidden_fixed_singular-plural").text(),
+    strPurposeDesc:obj.find(".donatepurposedescfull").text().substring(0,200),
+    numAmount: Number(obj.find(".donateamount").val()),
+    strCurrency: obj.find(".donatecurrency").val(),
+    strImage: strImage,
+    strRecurring:obj.find(".donatefrequency").val(),
+    bFee:obj.find(".donatefeescheckbox").is(":checked"),
+    iCount:Number(obj.find(".donatecount1").val())
+  }
+return item;
+}
 
 
-    $(".donateform").each(function(i,obj) { 
-      var objType = getType(obj)
-  //    $(obj).find(".donatefixedfreq").text(objType.recur);
-      var objSingularPlural;
+function Donate(obj)
+{
+var postData = []
+postData.push(item)    
+StripeDonate(postData)
+}
 
-      // Initialize the inputs if they are hidden
-      if (objType.type=="Fixed")  $(obj).find(".donateamount").val( $(obj).find(".hidden_fixedamount"))
-      var strSingularPlural = $(obj).find(".hidden_fixed_singular-plural").text()
-      if (strSingularPlural != "") 
-          objSingularPlural = strSingularPlural.split("-")
-      else
-         $(obj).find(".donatecount1").val( "1" )
 
-      // Adjust description length and add (Read More...)
-      var strPurposeDesc = $(obj).find(".donatepurposedescfull").html();
-      if (strPurposeDesc.length > iMaxDescLen)
-      {
-        strPurposeDesc = strPurposeDesc.substring(0,iMaxDescLen) + "... <u style='color:blue;' >(read more)</u> " 
-        $(obj).find(".donatepurposedesc").html(strPurposeDesc);
-      }
-      
-      // Handle fixed and item changes
-      if (objType.type=="Fixed") {
-        $(obj).find(".donatefixedpricing1").css("display", "block");
-        $(obj).find(".donatefixedpricing2").css("display", (objSingularPlural!==undefined)?"flex":"none");
-        $(obj).find(".donatefixedfreq").css("display", "block");
-      }
-      else
-      {
-          // Handle changes for varibale amount
-          $(obj).find(".donategeneralpricing").css("display", "flex");
-          if (objType.recur=="Choice") 
-            $(obj).find(".donatefrequency").css("display","block")
-          else
-            if (objType.recur=="Month")
-            {
-              // set freq to Monthly and hide freq and display "/Month"
-              $(obj).find(".donatefrequency").val("Monthly") 
-              $(obj).find(".donatefreqdiv").css("display","block")
-              $(obj).find(".donatefrequencymonth").css("display","block")
-            }
-          }
-        
-        $(obj).find(".donatecurrency").val(gCur) 
-        FixCurrencyText(obj) 
-  
-        })
-  });  
 
-$(".donatecurrency").change(function(){
-  var top = $(this).closest('.donateform');
-  var sCur = $(top).find(".donatecurrency").val()  
-  setCookie("Curency",sCur)
 
- // FixCurrencyText(top) 
-  // Handle currency change for each form
-  $(".donateform").each(function(i,obj){
-    $(obj).find(".donatecurrency").val(sCur)
-    FixCurrencyText(obj)
-  })
-})
+
 
 function FixCurrencyText(obj)
 {
@@ -302,755 +281,235 @@ function FixCurrencyText(obj)
   }
 }
 
+function OnLoadInitialize() {
+  objCart = undefined;
+  refreshCart();
 
-    $(".donatefeescheckbox").change(function()
+  var strCurrency = getCookie("Currency")
+  if (strCurrency == "") strCurrency = "USD"
+  gCur = strCurrency;
+
+  if (window.location.pathname == "/checkout")
     {
-      var top = $(this).closest('.donateform');
-      FixCurrencyText(top)
-    })
-  
-    $(".donateamount").keyup(function(){
-      var top = $(this).closest('.donateform');
-      FixCurrencyText(top)
-  })
-  
-  $(".donatecount1").keyup(function(){
-    var top = $(this).closest('.donateform');
-    FixCurrencyText(top)
-  })
-  
-  $(".donatefrequency").change(function(){
-    var top = $(this).closest('.donateform');
-    FixCurrencyText(top)
-  })
-  
-  $(".donatepurposedesc").click(function(){
-    var top = $(this).closest('.donateform');
-  
-    if ($(top).find(".donatepurposedesc").html().length > iMaxDescLen )
-    {
-      if ($(top).find(".donatedetails").css("display") == "block")
-        $(top).find(".donatedetails").css("display","none") 
-      else
-        $(top).find(".donatedetails").css("display","block") 
-    }
-  })
-  
-  $(".donatedetails").click(function(){
-    var top = $(this).closest('.donateform');
-    $(top).find(".donatedetails").css("display","none") 
-  })
-  
-  $(".changecurrency").click(function(){
-    var top = $(this).closest('.donateform');
-  
-    $(top).find(".donatedisableoncebutton").css("display","block") 
-    $(top).find(".donatedisableaddtocartbutton").css("display","block") 
-    $(top).find(".changecurrency").css("display","none") 
-    $(top).find(".donatecurrency").css("display","block") 
-  })
-  
-  /*
-  $(".donateaboutdropdown").click(function(){
-    var top = $(this).closest('.donateform');
-    $(top).find(".donateaboutlist").css("display","none") 
-  })
-*/
-
-  $(".donateonce").click(function(){
-    var top = $(this).closest('.donateform');
-    DonateOrAddToCart( top , "donate")
-  })
-
-  $(".donateaddtocart").click(function(){
-    var top = $(this).closest('.donateform');
-    DonateOrAddToCart( top , "addtocart")
-  })
-
-
-  function Donate(method,postData)
-  {
-    $.ajax({
-      url: urlKIDSWeb + method, 
-      type: 'POST',
-      data: JSON.stringify(postData),
-      contentType: 'application/json',
-      dataType: 'json',
-      success: function(response) {
-
-        window.open(response.url);
-          console.log('Success:', response);
-      },
-      error: function(xhr, status, error) {
-          console.error('Error:', error);
-      }
-    });
-  }
-
-  function DonateOrAddToCart(obj,donateType)
-    {
-      var strImage 
-      var srcset = obj.find(".donateimage").attr("srcset")
-      if (srcset==undefined)
-        strImage = obj.find(".donateimage").attr("src");
-      else
-      {
-        var arr = srcset.split(" ")
-        strImage = arr[0]
-      }  
+      InitCheckoutPage() 
+      refreshCart()
       
-      var item = 
-        { strPurpose:obj.find(".donatepurpose").text(),
-          strType:obj.find(".hidden_type").text(),
-          strProductId:obj.find(".hidden_productid").text(),
-          strFixed_SingularPlural:obj.find(".hidden_fixed_singular-plural").text(),
-          strPurposeDesc:obj.find(".donatepurposedescfull").text().substring(0,200),
-          numAmount: Number(obj.find(".donateamount").val()),
-          strCurrency: obj.find(".donatecurrency").val(),
-          strImage: strImage,
-          strRecurring:obj.find(".donatefrequency").val(),
-          bFee:obj.find(".donatefeescheckbox").is(":checked"),
-          iCount:Number(obj.find(".donatecount1").val())
-        }
-
-    if (donateType=="donate")
+      $("#Button_Checkout").click(function()
       {
+ 
+        StripeDonate(objCart)
+        setCookie("ShoppingCart",[])
+        
+      })
 
-        var postData = []
-        postData.push(item)    
-        Donate('/checkout',postData)
-      }
+      $(".checkoutitemremove").click(function()
+      {
+          var top = $(this).closest('.checkoutitem');
+          $(".checkoutitem").each(function(i,obj) {
+            if (obj == top[0])
+              { $(top).remove(); 
+                objCart.splice(i, 1);;
+              }
+              SaveCart()
+              if (objCart.length==0)
+                {
+                  $(".checkoutloadingcart").css("display", "none");
+                  $(".checkoutcartempty").css("display","block")
+                  $(".checkoutmain").css("display","none")
+                }
+          })
+      })
 
-      if (donateType == "addtocart")
-        {
-          AddToCart(item)
-          console.log(objCart)
-        }
+      $("#Button_RemoveAll").click(function()
+      {
+        objCart = []
+        SaveCart()
+        $(".checkoutloadingcart").css("display", "none");
+        $(".checkoutcartempty").css("display","block")
+        $(".checkoutmain").css("display","block")
+      })
     }
 
+    $(".donateform").each(function(i,obj) { 
+      var objType = getType(obj)
+      
+  //    $(obj).find(".donatefixedfreq").text(objType.recur);
+      var objSingularPlural;
+
+      // Initialize the inputs if they are hidden
+      if (objType.type=="Fixed")  $(obj).find(".donateamount").val( $(obj).find(".hidden_fixedamount"))
+      var strSingularPlural = $(obj).find(".hidden_fixed_singular-plural").text()
+      if (strSingularPlural != "") 
+          objSingularPlural = strSingularPlural.split("-")
+      else
+         $(obj).find(".donatecount1").val( "1" )
+
+      var strInfoType = $(obj).find(".hidden_infotype").text()
+
+      if (strInfoType=="Display") $(obj).find(".donateinfo").css("display","block")
+      if ( (strInfoType=="Optional") && (strInfoType=="CustomPurpose")) $(obj).find(".donateaddinfo").css("display","block")
+        $(obj).find(".donateinfo").attr("placeholder",$(obj).find(".hidden_infoplaceholder").text()) 
+      $(obj).find(".donateaddinfo").text($(obj).find(".hidden_addinfo").text()) 
+ 
+      // Adjust description length and add (Read More...)
+      var strPurposeDesc = $(obj).find(".donatepurposedescfull").html();
+      if (strPurposeDesc.length > iMaxDescLen)
+      {
+        strPurposeDesc = strPurposeDesc.substring(0,iMaxDescLen) + "... <u style='color:blue;' >(read more)</u> " 
+        $(obj).find(".donatepurposedesc").html(strPurposeDesc);
+      }
+      
+      // Handle fixed and item changes
+      if (objType.type=="Fixed") {
+        $(obj).find(".donatefixedpricing1").css("display", "block");
+        $(obj).find(".donatefixedpricing2").css("display", (objSingularPlural!==undefined)?"flex":"none");
+        $(obj).find(".donatefixedfreq").css("display", "block");
+      }
+      else
+      {
+          // Handle changes for varibale amount
+          $(obj).find(".donategeneralpricing").css("display", "flex");
+          if (objType.recur=="Choice") 
+            $(obj).find(".donatefrequency").css("display","block")
+          else
+            if (objType.recur=="Month")
+            {
+              // set freq to Monthly and hide freq and display "/Month"
+              $(obj).find(".donatefrequency").val("Monthly") 
+              $(obj).find(".donatefreqdiv").css("display","block")
+              $(obj).find(".donatefrequencymonth").css("display","block")
+            }
+          }
+        
+        $(obj).find(".donatecurrency").val(gCur) 
+        FixCurrencyText(obj) 
   
-  /*      fetch("https://8080-cs-395420509800-default.cs-asia-east1-vger.cloudshell.dev/", {
-          method: "POST", // *GET, POST, PUT, DELETE, etc.
-          mode: "cors", // no-cors, *cors, same-origin
-          cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
-  //        credentials: "same-origin", // include, *same-origin, omit
-          headers: {
-            "Content-Type": "text/plain"
-            },
-          redirect: "follow", // manual, *follow, error
-          referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-          body: "adfasdf" //JSON.stringify(postData),
         })
-          .then((response) => response.json())
-          .then((json) => console.log(json));
-  */
   
   
-  //    http://localhost:8080/checkout?price=33&currency=USD&productId//=abc123&recurring=false&testmode=true&productName//=test%20product%202&productDesc=product%20desc&productImage=https//://uploads-ssl.webflow.com/6450a9cc9922531a77060624//6450f9e2f06dfe0538467cb6_Volunteer%20-%20Feeding.jpg&customText=
-  //    
-  
-  //      console.log(" https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms)
-  //   $("#donationAmount").prop('value', 'One moment...');
-  //     window.location = " https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms
-    
-/*    
-    function UpdateURL(obj)
-    {
-  
-      var strPurpose = obj.find(".donatepurpose").text();
-      var strProductId = obj.find(".hidden_productid").text();
-      var strPurposeDesc = obj.find(".donatepurposedesc").text();
-  //    var strNote = obj.find(".donatetextnode:first").val();
-      var numAmount = Number(obj.find(".donateamount").val());
-      var strCurrency = obj.find(".donatecurrency").val();
-      var bFee = obj.find(".donatefeescheckbox").is(":checked");
-      var strsrcset = obj.find(".donateimage").attr("srcset")
-      var strRecurring = "Monthly"
-      
-      if (bFee) numAmount = numAmount * 1.05;
-      
-      var arr = strsrcset.split(" ")
-      var strImage = arr[0];
-  
-      console.log("Purpose:" + strPurpose)
-      console.log("ProductId:" + strProductId)
-      console.log("PurposeDesc:" + strPurposeDesc)
-      console.log("Amount:" + numAmount);
-      console.log("Currency:" + strCurrency);
-      console.log("Image:" + strImage); 
-  
-      var parms = "testmode=true" + "&"
-                    + "price=" + numAmount + "&"
-                + "currency=" + strCurrency + "&"
-                + "recurring=" + strRecurring + "&"
-                      + "productId=" + strProductId + "&"
-                      + "productName="   + encodeURIComponent(strPurpose) + "&" 
-                      + "productDesc=" + encodeURIComponent(strPurposeDesc) + "&"
-                      + "productImage=" + encodeURIComponent(strImage)
+        $(".donatecurrency").change(function(){
+          var top = $(this).closest('.donateform');
+          var sCur = $(top).find(".donatecurrency").val()  
+          setCookie("Curency",sCur)
         
-   //   var strServer = "https://stripe-gateway-cti4ktuxta-uc.a.run.app"
-      var strServer = "https://8080-cs-395420509800-default.cs-asia-east1-vger.cloudshell.dev"
-      var strURL = strServer + "/checkout?" + parms
-  
-  console.log(strURL)
-  
-  //    http://localhost:8080/checkout?price=33&currency=USD&productId//=abc123&recurring=false&testmode=true&productName//=test%20product%202&productDesc=product%20desc&productImage=https//://uploads-ssl.webflow.com/6450a9cc9922531a77060624//6450f9e2f06dfe0538467cb6_Volunteer%20-%20Feeding.jpg&customText=
-  //    
-  
-  //      console.log(" https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms)
-  //   $("#donationAmount").prop('value', 'One moment...');
-  //     window.location = " https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms
-      
-      
-    
-    }  
-  
-  */
+         // FixCurrencyText(top) 
+          // Handle currency change for each form
+          $(".donateform").each(function(i,obj){
+            $(obj).find(".donatecurrency").val(sCur)
+            FixCurrencyText(obj)
+          })
+        })  
 
-  /*
-  
-    var sRecurType, sPriceType, sCountType;
-  
-  var sFreq,sCur,sSym,sExchangeRate
-  
-  function getCookie(cname) {
-    let name = cname + "=";
-    let decodedCookie = decodeURIComponent(document.cookie);
-    let ca = decodedCookie.split(';');
-    for(let i = 0; i <ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) == ' ') {
-        c = c.substring(1);
-      }
-      if (c.indexOf(name) == 0) {
-        return c.substring(name.length, c.length);
-      }
-    }
-    return "";
-  }
-  
-  function getSlug()
-  {
-      var url = window.location.pathname
-     var varUrl = url.split('/');
-      return varUrl[varUrl.length-1]
-    }
-  
-  function UpdatePricing()
-  {
-      $(".d_form").each(function(i, obj) {
-        var sPrice
-        if (sPriceType=="Fixed")
-          {
-            sPrice = $(this).find(".d_dataprice").text()
-            sPrice = sPrice * sExchangeRate
-            if (sFreq == "/year") sPrice = Number(sPrice) * 12
-            $(this).find(".d_pricetext").text(sPrice)
-          }
-          else
-            sPrice = $(this).find(".d_priceinput").val()
-  
-          $(this).find(".d_fees > .w-form-label").text("Add " + sSym + (Number(sPrice) * .027).toFixed(2) + " to cover credit card fee.")
-      });
-  }
-  
-  function UpdateInfo()
-  {
-      sFreq = $("#d_DropdownFreq").val()
-  
-      var cur = $("#d_DropdownCurrency").val().split(",")
-      sSym = cur[0]
-      sExchangeRate = cur[1]
-  
-      $(".d_pricesym").text(sSym)
-      $(".d_pricecurrency").text(sCur)
-      $(".d_pricefreq").text(sFreq)
-      UpdatePricing()
-  }
-  
-  $("#d_DropdownFreq").change(function() {UpdateInfo();})
-  $("#d_DropdownCurrency").change(function()
-    {
-      sCur = $( "#d_DropdownCurrency option:selected" ).text();
-      document.cookie = "Currency=" + sCur + "; path=/; expires=Thu, 18 Dec 2100 12:00:00 UTC";
-    
-      UpdateInfo();
-    })
-  
-  $(window).on('load', function() {
-    // Default currency to the cookie
-    sCur = getCookie("Currency") 
-    $("#d_DropdownCurrency option:contains(" + sCur + ")").attr('selected', 'selected');
-  
-    $(".d_form").each(function(i, obj) {
-      sPriceType = $(this).find(".d_datapricetype").text()
-      console.log(sPriceType)
-      $(this).find(".d_pricetext").css("display",(sPriceType=="Fixed")?"block":"none")
-      $(this).find(".d_priceinput").css("display",(sPriceType=="Fixed")?"none":"block")
-    })
-  
-    sCountType = $("#d_CountType").text()
-    if ($(".d_form").length == 1)
+         
+
+        $(".donatefeescheckbox").change(function()
+        {
+          var top = $(this).closest('.donateform');
+          FixCurrencyText(top)
+        })
+      
+        $(".donateamount").keyup(function(){
+          var top = $(this).closest('.donateform');
+          FixCurrencyText(top)
+      })
+      
+      $(".donatecount1").keyup(function(){
+        var top = $(this).closest('.donateform');
+        FixCurrencyText(top)
+      })
+      
+      $(".donatefrequency").change(function(){
+        var top = $(this).closest('.donateform');
+        FixCurrencyText(top)
+      })
+      
+      $(".donatepurposedesc").click(function(){
+        var top = $(this).closest('.donateform');
+      
+        if ($(top).find(".donatepurposedesc").html().length > iMaxDescLen )
+        {
+            $(top).find(".donatedetailsdiv").css("display","block") 
+            $(top).find(".donatemaindiv").css("display","none") 
+        }
+      })
+      
+      $(".donatedetailsclose").click(function(){
+        var top = $(this).closest('.donateform');
+        $(top).find(".donatedetailsdiv").css("display","none") 
+        $(top).find(".donatemaindiv").css("display","block") 
+      })
+      
+      $(".donatecustomwarningclose").click(function(){
+        var top = $(this).closest('.donateform');
+        $(top).find(".donatecustomwarningdiv").css("display","none") 
+        $(top).find(".donatemaindiv").css("display","block") 
+      })
+      
+      $(".changecurrency").click(function(){
+        var top = $(this).closest('.donateform');
+      
+        $(top).find(".donatedisableoncebutton").css("display","block") 
+        $(top).find(".donatedisableaddtocartbutton").css("display","block") 
+        $(top).find(".changecurrency").css("display","none") 
+        $(top).find(".donatecurrency").css("display","block") 
+      })
+
+
+      $(".donateaddinfo").click(function()
       {
-        $(".d_selectbutton").css("display","none")
-        $(".d_finalbuttondiv").css("display","block")
-      }   
-    else
-      {
-        $(".d_selectbutton").css("display","block")
-        $(".d_finalbuttondiv").css("display","none")
-      }  
-  
-    sRecurType = $("#d_RecurType").text()
-    if (sRecurType=="Only") 
-    {
-      $("#d_DropdownFreq").val("/month")
-      $("#d_DropdownFreq option[value='']").remove();
+        var top = $(this).closest('.donateform');
+ 
+        $(top).find(".donatecustomwarningdiv").css("display","block")
+        $(top).find(".donatemaindiv","none").css("display","none")
+        $(top).find(".donateinfo").css("display","block")
+        $(top).find(".donateaddinfo").css("display","none")
+      })
+      
+      /*
+      $(".donateaboutdropdown").click(function(){
+        var top = $(this).closest('.donateform');
+        $(top).find(".donateaboutlist").css("display","none") 
+      })
+    */
+    
+      $(".donateonce").click(function(){
+        var top = $(this).closest('.donateform');
+        var item =  DonateGetCurrent(top)
+        var arr = []
+        arr.push(item)
+
+        $(top).find(".donatefees").css("display","none")
+        $(top).find(".donatetotaltext").text("Preparing for donation...")
+        $(top).find(".donatedisableoncebutton").css("display","block") 
+        $(top).find(".donatedisableaddtocartbutton").css("display","block") 
+        $(top).find(".changecurrency").css("display","none") 
+        $(top).find(".donatefrequency").css("display","none")
+        $(top).find(".donateamount").css("display","none")
+        $(top).find(".donatecount1").css("display","none")
+        $(top).find(".donatecounttext").css("display","none")
+ 
+        StripeDonate( arr)
+      })
+    
+      $(".donateaddtocart").click(function(){
+        var top = $(this).closest('.donateform');
+        var item =  DonateGetCurrent(top)
+        AddToCartCookie(item)
+
+        $(top).find(".donatefees").css("display","none")
+        $(top).find(".donatetotaltext").text("Added to cart")
+        $(top).find(".donatedisableoncebutton").css("display","block") 
+        $(top).find(".donatedisableaddtocartbutton").css("display","block") 
+        $(top).find(".changecurrency").css("display","none") 
+        $(top).find(".donatefrequency").css("display","none")
+        $(top).find(".donateamount").css("display","none")
+        $(top).find(".donatecount1").css("display","none")
+        $(top).find(".donatecounttext").css("display","none")
+ 
+        console.log(objCart)
+      })
+    
+
     }
-      UpdateInfo()
-      UpdatePricing()
+
   
-  });
-      
-  $(".d_priceinput").keyup(function(){
-        var top = $(this).closest('.d_form');
-        sPrice = $(top).find('.d_priceinput').val();
-        UpdatePricing()
-  })
-  
-  
-  $(".d_selectbutton").click(function(){
-    var top = $(this).closest('.d_form');
-   
-    $(".d_selectbutton").css("display","block")
-    $(".d_finalbuttondiv").css("display","none")
-    $(top).find('.d_finalbuttondiv').css("display","block")
-    $(top).find(".d_selectbutton").css("display","none")
-  })
-  
-  $(".d_button").click(function(){
-      var top = $(this).closest('.d_form');
-      var sPrice = bFixed?$(top).find(".d_pricetext").text():$(top).find(".d_priceinput").val()
-      var sButtonType = $(this).text()
-  
-      var sSlug = getSlug();
-      var sImageUrl = $("#d_MainImage").attr('src');
-      var sDesc = $("#d_MainDesc").text() + " : " + $("#d_MainDesc").text()
-  
-      console.log("sFreq=" + sFreq )
-      console.log("sCur=" + sCur)
-      console.log("sPrice=" + sPrice)
-      console.log("sButtonType=" + sButtonType)
-      console.log("sSlug=" + sSlug)
-      console.log("sImage=" + sImageUrl)
-      console.log("sDesc=" + sDesc)
-  
-  })
-  
-  /*$(top).find("$donateitemimage").attr('src');
-  $("#selectpurposedrop").click(function() {
-      console.log("test")
-      var container = $("#selectpurposecontainer")
-      
-      container.css("display", (container.css("display") === "none")?"block":"none");
-      $("#donateblock").css("display",(container.css("display") === "none")?"block":"none")
-      $("#purposeblock").css("display",(container.css("display") === "none")?"block":"none")
-  });
-    
-    
-  var colDesignation
-  var colSlug
-  var colImage
-  var colNeedShortDesc
-  var colDesc
-  var colDonationType
-    
-  $("#transactionFeeCheckboxContainer").css("visibility", "hidden");
-  
-  $("#donationAmount").on('keyup', function() {
-      
-    var strNum = $("#donationAmount").val()
-  
-    var amt = ((Math.round(parseFloat(strNum) * 100) / 100)*.05).toFixed(2);
-    $("#transactionFeeText").text("Add " + amt + " to your donation to cover transaction fees")
-  
-    if (amt>1)
-        $("#transactionFeeCheckboxContainer").css("visibility", "visible");
-    else
-        $("#transactionFeeCheckboxContainer").css("visibility", "hidden");
-    
-  })
-    
-    
-  function getData(p)
-    {
-      var designation = p.find('.col_designation').text()
-      console.log("clicked : " + designation)
-      console.log("before : " + $("#donationDesignation").text())
-       $("#donationDesignation").text(designation)
-      console.log("after : " +$( "#donationDesignation").text())
-  
-      
-      $("#donationDesc").text(p.find('.col_desc').text())
-       $("#donationSlug").text(p.find('.col_slug').text())
-       $("#donationImage").attr("src", p.find('.col_image').attr("src"))
-       
-      if (p.find('.col_image').attr("srcset") != undefined)
-          $("#donationImage").attr("srcset", p.find('.col_image').attr("srcset"))
-      else
-          $("#donationImage").attr("srcset", "")
-        
-    
-      console.log(p.find('.col_image').attr("src"))
-      console.log(p.find('.col_image').attr("srcset"))
-      
-    
-    }
-    
-  
-  function showInvalid(myControl,bValid)
-    {
-      if (!bValid)
-          myControl.css("border","2px solid red");
-      else
-          myControl.css("border","1px solid #dad4d4");
-        
-  //    myControl.animate({backgroundColor: 'red'}, 1000)
-                        //function() {
-       // myControl.animate({backgroundColor: 'white'}, 1000);});  
-    }
-    
-                      
-    
-    
-  $("#donateButton").click(function(){
-    var amt = $("#donationAmount").val();
-    
-    var regex = /^(?!-)\d+(\.\d{1,2})?$/;
-    var bAmount = regex.test(amt);
-  
-    showInvalid($("#donationAmount"),bAmount);
-    
-    if (!bAmount) 
-        {$("#donationAmount").focus(); document.getElementById("donationAmount").scrollIntoView();} 
-  
-    if (bAmount)
-    {
-        var amount = $("#donationAmount").val();
-        var currency = $("#donationCurrency").val();
-        var recurring = $("#donationRecurring").prop("checked");
-        var transactionfee = $("#donationTransactionFee").prop("checked");
-        var designation = "where-most-need"
-        var desc = $("#donationDesc").text();
-        var image = $("#donationImage").attr('src');
-        var slug = "where-most-need"
-      
-          console.log("amount:"+amount)
-        console.log("currency:"+currency)
-        console.log("recurring:"+recurring)
-        console.log("transactionfee:"+transactionfee)
-        console.log("designation:"+designation)
-        console.log("desc:"+desc)
-        console.log("image:"+image)
-        console.log("slug:"+slug)
-    
-        var parms = "testmode=true" + "&"
-                    + "price=" + amount + "&"
-                  + "currency=" + currency + "&"
-                  + "recurring=" + recurring + "&"
-                    + "productId=" + slug + "&"
-                    + "productName="   + encodeURIComponent(designation) + "&" 
-                    + "productDesc=" + encodeURIComponent(desc) + "&"
-                    + "productImage=" + encodeURIComponent(image)
-        
-    
-  //    http://localhost:8080/checkout?price=33&currency=USD&productId//=abc123&recurring=false&testmode=true&productName//=test%20product%202&productDesc=product%20desc&productImage=https//://uploads-ssl.webflow.com/6450a9cc9922531a77060624//6450f9e2f06dfe0538467cb6_Volunteer%20-%20Feeding.jpg&customText=
-  //    
-  
-        console.log(" https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms)
-     $("#donationAmount").prop('value', 'One moment...');
-       window.location = " https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms
-      
-    }
-    
-    
-  });  
-    
-    
-    
-    
-  /*
-  -----------------------
-    old code
-  */  
-    
-    
-  /*
-  
-    var sRecurType, sPriceType, sCountType;
-  
-  var sFreq,sCur,sSym,sExchangeRate
-  
-  function getCookie(cname) {
-    let name = cname + "=";
-    let decodedCookie = decodeURIComponent(document.cookie);
-    let ca = decodedCookie.split(';');
-    for(let i = 0; i <ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) == ' ') {
-        c = c.substring(1);
-      }
-      if (c.indexOf(name) == 0) {
-        return c.substring(name.length, c.length);
-      }
-    }
-    return "";
-  }
-  
-  function getSlug()
-  {
-      var url = window.location.pathname
-     var varUrl = url.split('/');
-      return varUrl[varUrl.length-1]
-    }
-  
-  function UpdatePricing()
-  {
-      $(".d_form").each(function(i, obj) {
-        var sPrice
-        if (sPriceType=="Fixed")
-          {
-            sPrice = $(this).find(".d_dataprice").text()
-            sPrice = sPrice * sExchangeRate
-            if (sFreq == "/year") sPrice = Number(sPrice) * 12
-            $(this).find(".d_pricetext").text(sPrice)
-          }
-          else
-            sPrice = $(this).find(".d_priceinput").val()
-  
-          $(this).find(".d_fees > .w-form-label").text("Add " + sSym + (Number(sPrice) * .027).toFixed(2) + " to cover credit card fee.")
-      });
-  }
-  
-  function UpdateInfo()
-  {
-      sFreq = $("#d_DropdownFreq").val()
-  
-      var cur = $("#d_DropdownCurrency").val().split(",")
-      sSym = cur[0]
-      sExchangeRate = cur[1]
-  
-      $(".d_pricesym").text(sSym)
-      $(".d_pricecurrency").text(sCur)
-      $(".d_pricefreq").text(sFreq)
-      UpdatePricing()
-  }
-  
-  $("#d_DropdownFreq").change(function() {UpdateInfo();})
-  $("#d_DropdownCurrency").change(function()
-    {
-      sCur = $( "#d_DropdownCurrency option:selected" ).text();
-      document.cookie = "Currency=" + sCur + "; path=/; expires=Thu, 18 Dec 2100 12:00:00 UTC";
-    
-      UpdateInfo();
-    })
-  
-  $(window).on('load', function() {
-    // Default currency to the cookie
-    sCur = getCookie("Currency") 
-    $("#d_DropdownCurrency option:contains(" + sCur + ")").attr('selected', 'selected');
-  
-    $(".d_form").each(function(i, obj) {
-      sPriceType = $(this).find(".d_datapricetype").text()
-      console.log(sPriceType)
-      $(this).find(".d_pricetext").css("display",(sPriceType=="Fixed")?"block":"none")
-      $(this).find(".d_priceinput").css("display",(sPriceType=="Fixed")?"none":"block")
-    })
-  
-    sCountType = $("#d_CountType").text()
-    if ($(".d_form").length == 1)
-      {
-        $(".d_selectbutton").css("display","none")
-        $(".d_finalbuttondiv").css("display","block")
-      }   
-    else
-      {
-        $(".d_selectbutton").css("display","block")
-        $(".d_finalbuttondiv").css("display","none")
-      }  
-  
-    sRecurType = $("#d_RecurType").text()
-    if (sRecurType=="Only") 
-    {
-      $("#d_DropdownFreq").val("/month")
-      $("#d_DropdownFreq option[value='']").remove();
-    }
-      UpdateInfo()
-      UpdatePricing()
-  
-  });
-      
-  $(".d_priceinput").keyup(function(){
-        var top = $(this).closest('.d_form');
-        sPrice = $(top).find('.d_priceinput').val();
-        UpdatePricing()
-  })
-  
-  
-  $(".d_selectbutton").click(function(){
-    var top = $(this).closest('.d_form');
-   
-    $(".d_selectbutton").css("display","block")
-    $(".d_finalbuttondiv").css("display","none")
-    $(top).find('.d_finalbuttondiv').css("display","block")
-    $(top).find(".d_selectbutton").css("display","none")
-  })
-  
-  $(".d_button").click(function(){
-      var top = $(this).closest('.d_form');
-      var sPrice = bFixed?$(top).find(".d_pricetext").text():$(top).find(".d_priceinput").val()
-      var sButtonType = $(this).text()
-  
-      var sSlug = getSlug();
-      var sImageUrl = $("#d_MainImage").attr('src');
-      var sDesc = $("#d_MainDesc").text() + " : " + $("#d_MainDesc").text()
-  
-      console.log("sFreq=" + sFreq )
-      console.log("sCur=" + sCur)
-      console.log("sPrice=" + sPrice)
-      console.log("sButtonType=" + sButtonType)
-      console.log("sSlug=" + sSlug)
-      console.log("sImage=" + sImageUrl)
-      console.log("sDesc=" + sDesc)
-  
-  })
-  
-  /*$(top).find("$donateitemimage").attr('src');
-  $("#selectpurposedrop").click(function() {
-      console.log("test")
-      var container = $("#selectpurposecontainer")
-      
-      container.css("display", (container.css("display") === "none")?"block":"none");
-      $("#donateblock").css("display",(container.css("display") === "none")?"block":"none")
-      $("#purposeblock").css("display",(container.css("display") === "none")?"block":"none")
-  });
-    
-    
-  var colDesignation
-  var colSlug
-  var colImage
-  var colNeedShortDesc
-  var colDesc
-  var colDonationType
-    
-  $("#transactionFeeCheckboxContainer").css("visibility", "hidden");
-  
-  $("#donationAmount").on('keyup', function() {
-      
-    var strNum = $("#donationAmount").val()
-  
-    var amt = ((Math.round(parseFloat(strNum) * 100) / 100)*.05).toFixed(2);
-    $("#transactionFeeText").text("Add " + amt + " to your donation to cover transaction fees")
-  
-    if (amt>1)
-        $("#transactionFeeCheckboxContainer").css("visibility", "visible");
-    else
-        $("#transactionFeeCheckboxContainer").css("visibility", "hidden");
-    
-  })
-    
-    
-  function getData(p)
-    {
-      var designation = p.find('.col_designation').text()
-      console.log("clicked : " + designation)
-      console.log("before : " + $("#donationDesignation").text())
-       $("#donationDesignation").text(designation)
-      console.log("after : " +$( "#donationDesignation").text())
-  
-      
-      $("#donationDesc").text(p.find('.col_desc').text())
-       $("#donationSlug").text(p.find('.col_slug').text())
-       $("#donationImage").attr("src", p.find('.col_image').attr("src"))
-       
-      if (p.find('.col_image').attr("srcset") != undefined)
-          $("#donationImage").attr("srcset", p.find('.col_image').attr("srcset"))
-      else
-          $("#donationImage").attr("srcset", "")
-        
-    
-      console.log(p.find('.col_image').attr("src"))
-      console.log(p.find('.col_image').attr("srcset"))
-      
-    
-    }
-    
-  
-  function showInvalid(myControl,bValid)
-    {
-      if (!bValid)
-          myControl.css("border","2px solid red");
-      else
-          myControl.css("border","1px solid #dad4d4");
-        
-  //    myControl.animate({backgroundColor: 'red'}, 1000)
-                        //function() {
-       // myControl.animate({backgroundColor: 'white'}, 1000);});  
-    }
-    
-                      
-    
-    
-  $("#donateButton").click(function(){
-    var amt = $("#donationAmount").val();
-    
-    var regex = /^(?!-)\d+(\.\d{1,2})?$/;
-    var bAmount = regex.test(amt);
-  
-    showInvalid($("#donationAmount"),bAmount);
-    
-    if (!bAmount) 
-        {$("#donationAmount").focus(); document.getElementById("donationAmount").scrollIntoView();} 
-  
-    if (bAmount)
-    {
-        var amount = $("#donationAmount").val();
-        var currency = $("#donationCurrency").val();
-        var recurring = $("#donationRecurring").prop("checked");
-        var transactionfee = $("#donationTransactionFee").prop("checked");
-        var designation = "where-most-need"
-        var desc = $("#donationDesc").text();
-        var image = $("#donationImage").attr('src');
-        var slug = "where-most-need"
-      
-          console.log("amount:"+amount)
-        console.log("currency:"+currency)
-        console.log("recurring:"+recurring)
-        console.log("transactionfee:"+transactionfee)
-        console.log("designation:"+designation)
-        console.log("desc:"+desc)
-        console.log("image:"+image)
-        console.log("slug:"+slug)
-    
-        var parms = "testmode=true" + "&"
-                    + "price=" + amount + "&"
-                  + "currency=" + currency + "&"
-                  + "recurring=" + recurring + "&"
-                    + "productId=" + slug + "&"
-                    + "productName="   + encodeURIComponent(designation) + "&" 
-                    + "productDesc=" + encodeURIComponent(desc) + "&"
-                    + "productImage=" + encodeURIComponent(image)
-        
-    
-  //    http://localhost:8080/checkout?price=33&currency=USD&productId//=abc123&recurring=false&testmode=true&productName//=test%20product%202&productDesc=product%20desc&productImage=https//://uploads-ssl.webflow.com/6450a9cc9922531a77060624//6450f9e2f06dfe0538467cb6_Volunteer%20-%20Feeding.jpg&customText=
-  //    
-  
-        console.log(" https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms)
-     $("#donationAmount").prop('value', 'One moment...');
-       window.location = " https://kidsim-stripe-5qpi5j2ynq-uc.a.run.app/checkout?" + parms
-      
-    }
-    
-    
-  });  
-  */
