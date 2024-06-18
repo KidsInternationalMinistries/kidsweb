@@ -2,6 +2,7 @@
 // Make sure in the kidsweb directory in terminal
 // cd kidsweb
 // gcloud init
+// Project kids-web-422406
 // gcloud run deploy stripe-gateway --source . --allow-unauthenticated --region=us-central1
 // example of what to post in a variable called field
 //var fff =
@@ -59,18 +60,46 @@ app.get('/test', (req, res) => {
 });
 
 
+function displayDate(timestamp) {
+  const date = new Date(timestamp * 1000); // Stripe timestamp is in seconds, convert to milliseconds
+  return date.toLocaleString(); // Adjust the formatting as needed
+}
+
+
 app.get('/stripe-get', async (req, res) => {
 
   try{
-    res.set('Content-Type', 'text/plain')
-    const arrPI = await stripe.paymentIntents.list()
 
-    res.write("Amount\r\n")
+    var dateStart = req.query.startdate
+    var dateEnd = req.query.enddate
+
+    const params = {
+      limit: 100,
+      created: {
+        gte: Math.floor(new Date(dateStart).getTime() / 1000),
+        lte: Math.floor(new Date(dateEnd).getTime() / 1000),
+      },
+    };
+
+    res.set('Content-Type', 'text/plain')
+    const arrPI = await stripe.paymentIntents.list(params)
+
+    res.write("Date,Amount\r\n")
 
     for(var i = 0; i<arrPI.data.length; i++)
       {
-        res.write(arrPI.data[i].amount + "\r\n")
+        const sessions = await stripe.checkout.sessions.list({ payment_intent: arrPI.data[i].id });
+        const sessionId = sessions.data[0].id;
+        const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
+    
 
+        res.write(displayDate(arrPI.data[i].created) + ",")
+        res.write(arrPI.data[i].amount.toFixed(2) + ",")
+        res.write(arrPI.data[i].currency + ",") 
+        res.write(arrPI.data[i].receipt_email + ",")
+
+        
+        res.write( "\r\n" )
       }
 
   }

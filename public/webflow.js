@@ -346,19 +346,21 @@ function OnLoadInitialize() {
 
       var strInfoType = $(obj).find(".hidden_infotype").text()
 
-      if (strInfoType=="Display") $(obj).find(".donateinfo").css("display","block")
-      if ( (strInfoType=="Optional") && (strInfoType=="CustomPurpose")) $(obj).find(".donateaddinfo").css("display","block")
+      if ( (strInfoType=="Display") || (strInfoType=="Required")) $(obj).find(".donateinfo").css("display","block")
+      if (strInfoType=="CustomPurpose") $(obj).find(".donateaddinfo").css("display","block")
         $(obj).find(".donateinfo").attr("placeholder",$(obj).find(".hidden_infoplaceholder").text()) 
-      $(obj).find(".donateaddinfo").text($(obj).find(".hidden_addinfo").text()) 
+      var strAddInfo = $(obj).find(".hidden_infotext").text();
+
+      if (strAddInfo!="") $(obj).find(".donateaddinfo").text(strAddInfo) 
  
       // Adjust description length and add (Read More...)
       var strPurposeDesc = $(obj).find(".donatepurposedescfull").html();
       if (strPurposeDesc.length > iMaxDescLen)
       {
         strPurposeDesc = strPurposeDesc.substring(0,iMaxDescLen) + "... <u style='color:blue;' >(read more)</u> " 
-        $(obj).find(".donatepurposedesc").html(strPurposeDesc);
       }
-      
+      $(obj).find(".donatepurposedesc").html(strPurposeDesc);
+
       // Handle fixed and item changes
       if (objType.type=="Fixed") {
         $(obj).find(".donatefixedpricing1").css("display", "block");
@@ -459,8 +461,12 @@ function OnLoadInitialize() {
       {
         var top = $(this).closest('.donateform');
  
-        $(top).find(".donatecustomwarningdiv").css("display","block")
-        $(top).find(".donatemaindiv","none").css("display","none")
+        if (top.find(".hidden_infotype").text()=="CustomPurpose")
+          {
+            $(top).find(".donatecustomwarningdiv").css("display","block")
+            $(top).find(".donatemaindiv","none").css("display","none")
+          }
+        
         $(top).find(".donateinfo").css("display","block")
         $(top).find(".donateaddinfo").css("display","none")
       })
