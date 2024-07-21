@@ -179,9 +179,9 @@ app.post('/checkout', async (req, res) => {
             }
           }
         
-        var stripeprice = Math.trunc(data.numAmount * 100)
+        var stripeprice = Math.trunc(data.numAmount * ( data.bFee ? 1.05:1) * 100)
         var bFound = false;
-        var prices = [];
+        var prices = []; 
         var has_more = true;
         while (has_more) {
           var parm = {
