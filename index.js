@@ -24,8 +24,10 @@
    ]
 */
 
+if (process.env.NODE_ENV !== "production") {
+  require('dotenv').config();
+}
 
-require('dotenv').config();
 const configStripe_Secret = {
 	live: { usd: process.env.STRIPE_USD_SECRET_KEY,      cad: process.env.STRIPE_CAD_SECRET_KEY,      other: process.env.STRIPE_OTHER_SECRET_KEY },
 	test: { usd: process.env.STRIPE_USD_SECRET_TEST_KEY, cad: process.env.STRIPE_CAD_SECRET_TEST_KEY, other: process.env.STRIPE_OTHER_SECRET_TEST_KEY},
