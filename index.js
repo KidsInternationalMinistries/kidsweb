@@ -10,6 +10,10 @@
 //     access the url and answer 'Yes'
 //     use the URL in webflow global script
 
+// REMEMBER ************************
+// Env variables do not load in google cloud.  they need to be added as you edit the service.
+//  -- if we ever add more currencies or change our keys to stripe, they need to be updated in google cloud.
+// *******************************************************
 
 // example of what to post in a variable called field
 //var fff =
