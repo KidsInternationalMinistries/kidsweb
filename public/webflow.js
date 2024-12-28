@@ -131,6 +131,14 @@ function initializeDisableScroll() {
 //*********************************************************************************************************************************
 // DONATE TEST MODE FLAG
 //*********************************************************************************************************************************
+// Function to enable test mode
+function enableTestMode() {
+  const wrapper = document.getElementById('DonateTestModeWrapper');
+  const checkbox = document.getElementById('DonateTestMode');
+    wrapper.style.display = 'block'; // Unhide the wrapper
+  checkbox.checked = true; // Check the checkbox
+  localStorage.setItem('testMode', 'true'); // Set testMode in localStorage
+}
 
 function initializeTestMode() {
     const wrapper = document.getElementById('DonateTestModeWrapper');
@@ -140,13 +148,6 @@ function initializeTestMode() {
     if (!wrapper || !checkbox) {
         console.warn('DonateTestModeWrapper or DonateTestMode checkbox not found.');
         return;
-    }
-
-    // Function to enable test mode
-    function enableTestMode() {
-        wrapper.style.display = 'block'; // Unhide the wrapper
-        checkbox.checked = true; // Check the checkbox
-        localStorage.setItem('testMode', 'true'); // Set testMode in localStorage
     }
 
     // Function to disable test mode
@@ -174,7 +175,7 @@ function initializeTestMode() {
 
     // Add a keydown event listener for Alt + Ctrl + T
     document.addEventListener('keydown', (event) => {
-        if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 't') {
+        if (event.ctrlKey && event.altKey && event.key.toLowerCase() === '1') {
             enableTestMode(); // Enable test mode when the key combination is pressed
         }
     });
@@ -357,13 +358,14 @@ function DonateGetCurrent(obj) {
     strImage = arr[0]
   }
 
+
   var item =
   {
     strPurpose: obj.find(".hidden_donateministry").text(),
     strType: obj.find(".hidden_type").text(),
     strProductId: obj.find(".hidden_productid").text(),
     strFixed_SingularPlural: obj.find(".hidden_fixed_singular-plural").text(),
-    strPurposeDesc: obj.find(".hidden_purposedesc").text().substring(0, 200),
+    strPurposeShortDesc: obj.find(".hidden_purposeshortdesc").text() + " ",
     strCustomPurpose: obj.find(".donatecustompurposeinput").val(),
     numAmount: Number(obj.find(".donateamount").val()),
     strCurrency: obj.find(".donatecurrencyselect").val(),
@@ -426,8 +428,10 @@ function FixAfterChange(obj) {
     if ((objType.type !== "Enter") || (sCur != sCurOld)) $(obj).find(".donateamount").val(fAmount)
       $(obj).find(".donatefixedamount").text(CurrencyDisp(fAmount, sCur))
     $(obj).find(".donatetotal").text("Total: " + CurrencyDisp(fAmount, sCur))
-  
+    $(obj).find(".coverfeediv").css("display","block")
   }
+  else
+     $(obj).find(".coverfeediv").css("display","none")
 
   var bReqComplete = (($(obj).find(".hidden_custompurposetype").text() != "Required") || $(obj).find(".donatecustompurposeinput").val() != "")
   
@@ -454,7 +458,8 @@ function InitializeCheckout()
 
   if (objCart.length == 0) {
     $(".checkoutloadingcart").css("display", "none");
-    $(".checkoutcartempty").css("display", "block")
+    $(".checkoutcartempty").css("display", "block");
+    $(".checkoutmain").css("display", "none")
     localStorage.setItem("ShoppingCart",JSON.stringify([]))
   }
   else {
@@ -467,7 +472,7 @@ function InitializeCheckout()
       $(objItem).find(".checkoutimage").attr("srcset", "")
       $(objItem).find(".checkoutimage").attr("src", objCart[index].strImage)
       $(objItem).find(".checkoutpurpose").text(objCart[index].strPurpose)
-      $(objItem).find(".checkoutpurposedesc").text(objCart[index].strPurposeDesc)
+      $(objItem).find(".checkoutpurposeshortdesc").text(objCart[index].strPurposeShortDesc)
 
       var arrType = objCart[index].strType.split("-")
 

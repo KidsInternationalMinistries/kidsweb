@@ -45,8 +45,9 @@ var configStripe_Publishable = {
 function GetStripeKey(strCurrency, strMode,bSecretKey)
 {
 //*****************force test mode until live */
-  strMode = "test"
+//  strMode = "test"
 //******************************************** */
+
   var stripeKey;
   var stripeSystem = strCurrency.toLowerCase();
   if ( (stripeSystem != "usd") && (stripeSystem != "cad") ) stripeSystem = "other"
@@ -63,14 +64,24 @@ function GetStripeKey(strCurrency, strMode,bSecretKey)
 const express = require('express');
 const bodyParser = require('body-parser');
 
+/*
+let corsOptions = { 
+  origin : ['http://kidsim.webflow.io','http://www.kidsim.org'], 
+}
+*/
+
+const corsOptions = {
+  origin: '*', // Allow requests from any origin
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all methods
+  credentials: true // Allow sending cookies and authentication headers
+};
+
 const app = express();
 const cors = require('cors') //- this makes it fail to deploy
-app.use(cors()) // this makes it fail to deploy
+//app.use(cors()) // this makes it fail to deploy
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Allow preflight requests
 app.use(bodyParser.json());
-
-let corsOptions = { 
-  origin : ['http://kidsim.webflow.io','http://staging.kidsim.org'], 
-}
 
 // Using express.urlencoded middleware
 app.use(express.urlencoded({
@@ -102,7 +113,7 @@ app.post('/checkout', async (req, res) => {
               const existingProduct = await stripe.products.retrieve(data.strProductId);
               console.log('Product already exists - updating details', existingProduct);
 
-              await stripe.products.update(data.strProductId, { name: data.strPurpose,  description:data.strPurposeDesc, images: [data.strImage],});
+              await stripe.products.update(data.strProductId, { name: data.strPurpose,  description:data.strPurposeShortDesc, images: [data.strImage],});
             } 
             catch (error)
             {
@@ -111,7 +122,7 @@ app.post('/checkout', async (req, res) => {
               const createdProduct = await stripe.products.create(
                   {id: data.strProductId, 
                   name: data.strPurpose,  
-                  description:data.strPurposeDesc, 
+                  description:data.strPurposeShortDesc, 
                   images: [data.strImage]})
               console.log('Product created:', createdProduct);
             } else {
@@ -172,6 +183,8 @@ app.post('/checkout', async (req, res) => {
     // Create a checkout session
     checkout = {
       ui_mode: 'embedded',
+      billing_address_collection: 'required',
+      phone_number_collection: {enabled: true},
       mode: sessionmode, //recurring?"subscription":"payment",
       line_items: arrPriceId,
       return_url: req.body.return_url + "?session_id={CHECKOUT_SESSION_ID}",
@@ -194,22 +207,15 @@ app.post('/checkout', async (req, res) => {
   }
 });
 
-const port = 8080;
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
-
-
-
-app.post('/session-status', async (req, res) => {
-
+app.post('/SessionStatus', async (req, res) => {
 
   const stripeKey = GetStripeKey(req.body.currency, req.body.testMode,true);
   var stripe = require('stripe')(stripeKey);
+  
   var strReceipt
   try{
     const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
-    if (session.payment_intent != null)
+        if (session.payment_intent != null)
       {
         const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
         const latest_charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
@@ -221,7 +227,8 @@ app.post('/session-status', async (req, res) => {
         strReceipt = invoice.hosted_invoice_url
 
       }
-    res.json({
+
+          res.json({
       status: session.status,
       customer_email: session.customer_details.email,
       receipt_url:strReceipt
@@ -233,6 +240,13 @@ app.post('/session-status', async (req, res) => {
     res.status(500).send({ error: 'An error occurred while retrieving session status.' });
   }
 });
+
+
+const port = 8080;
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
+
 
 /*
 function displayDate(timestamp) {
