@@ -332,6 +332,7 @@ function isStripeTest() { return (localStorage.getItem('testMode') === 'true') }
 function StripeDonate(postData,type) {
   localStorage.setItem("DonateType",type)
   objData = { mode: isStripeTest()?"test":"live", arrCart: postData, return_url: "https://" + window.location.hostname + "/stripe/return" }
+   console.log(objData)
   $.ajax({
     url: urlKIDSWeb + '/Checkout',
     type: 'POST',
@@ -369,6 +370,7 @@ function DonateGetCurrent(obj) {
     strCustomPurpose: obj.find(".donatecustompurposeinput").val(),
     numAmount: Number(obj.find(".donateamount").val()),
     strCurrency: obj.find(".donatecurrencyselect").val(),
+    strNotify: obj.find(".hidden_notify").text(),
     strImage: strImage,
     strRecurring: obj.find(".donatefrequencyselect").val(),
     bFee: obj.find(".donatefeescheckbox").is(":checked"),

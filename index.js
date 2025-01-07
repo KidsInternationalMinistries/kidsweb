@@ -78,7 +78,6 @@ const corsOptions = {
 
 const app = express();
 const cors = require('cors') //- this makes it fail to deploy
-//app.use(cors()) // this makes it fail to deploy
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Allow preflight requests
 app.use(bodyParser.json());
@@ -178,7 +177,7 @@ app.post('/checkout', async (req, res) => {
           
           arrPriceId.push( {price: oPrice.id,quantity: data.iCount})
         }
-        passthrough.metadata["item-" + i]  = JSON.stringify({id:data.strProductId,idPrice:priceId,purpose:data.strPurpose,custompupose:data.strCustomPurpose,recur:data.strRecurring,amount:data.numAmount, currency:data.strCurrency,coverFee:data.bFee,count:data.iCount})
+        passthrough.metadata["item-" + i]  = JSON.stringify({id:data.strProductId,idPrice:priceId,purpose:data.strPurpose,custompupose:data.strCustomPurpose,recur:data.strRecurring,amount:data.numAmount, currency:data.strCurrency, notify:data.strNotify,coverFee:data.bFee,count:data.iCount})
       }
     // Create a checkout session
     checkout = {
@@ -208,13 +207,12 @@ app.post('/checkout', async (req, res) => {
 });
 
 app.post('/SessionStatus', async (req, res) => {
-
-  const stripeKey = GetStripeKey(req.body.currency, req.body.testMode,true);
+  const stripeKey = GetStripeKey(req.body.currency, req.body.testMode?"test":"live",true);
   var stripe = require('stripe')(stripeKey);
   
   var strReceipt
   try{
-    const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
+    const session = await stripe.checkout.sessions.retrieve(req.body.session_id);
         if (session.payment_intent != null)
       {
         const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
@@ -228,11 +226,11 @@ app.post('/SessionStatus', async (req, res) => {
 
       }
 
-          res.json({
-      status: session.status,
-      customer_email: session.customer_details.email,
-      receipt_url:strReceipt
-    });
+      res.json({
+        status: session.status,
+        customer_email: session.customer_details.email,
+        receipt_url:strReceipt
+      });
   }
   catch(err)
   {
