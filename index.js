@@ -4,7 +4,7 @@
 //     gcloud init
 //     Project kids-web-422406
 //      gcloud run deploy stripe-gateway --source . --allow-unauthenticated --region=us-central1
-//
+
 // To debug use ngrok
 //     ngrok http 8080 
 //     access the url and answer 'Yes'
