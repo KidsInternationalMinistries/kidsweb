@@ -33,13 +33,13 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const configStripe_Secret = {
-	live: { usd: process.env.STRIPE_USD_SECRET_KEY,      cad: process.env.STRIPE_CAD_SECRET_KEY,      other: process.env.STRIPE_OTHER_SECRET_KEY },
-	test: { usd: process.env.STRIPE_USD_SECRET_TEST_KEY, cad: process.env.STRIPE_CAD_SECRET_TEST_KEY, other: process.env.STRIPE_OTHER_SECRET_TEST_KEY},
+	live: { usd: process.env.STRIPE_USD_SECRET_KEY,      cad: process.env.STRIPE_USD_SECRET_KEY,      other: process.env.STRIPE_OTHER_SECRET_KEY },
+	test: { usd: process.env.STRIPE_USD_SECRET_TEST_KEY, cad: process.env.STRIPE_USD_SECRET_TEST_KEY, other: process.env.STRIPE_OTHER_SECRET_TEST_KEY},
 };
 
 var configStripe_Publishable = {
-	live: { usd: process.env.STRIPE_USD_PUBLISHABLE_KEY,      cad: process.env.STRIPE_CAD_PUBLISHABLE_KEY,       other: process.env.STRIPE_OTHER_PUBLISHABLE_KEY},
-	test: { usd: process.env.STRIPE_USD_PUBLISHABLE_TEST_KEY, cad: process.env.STRIPE_CAD_PUBLISHABLE_TEST_KEY , other: process.env.STRIPE_OTHER_PUBLISHABLE_TEST_KEY},
+	live: { usd: process.env.STRIPE_USD_PUBLISHABLE_KEY,      cad: process.env.STRIPE_USD_PUBLISHABLE_KEY,       other: process.env.STRIPE_OTHER_PUBLISHABLE_KEY},
+	test: { usd: process.env.STRIPE_USD_PUBLISHABLE_TEST_KEY, cad: process.env.STRIPE_USD_PUBLISHABLE_TEST_KEY , other: process.env.STRIPE_OTHER_PUBLISHABLE_TEST_KEY},
 };
 
 function GetStripeKey(strCurrency, strMode,bSecretKey)
@@ -47,8 +47,7 @@ function GetStripeKey(strCurrency, strMode,bSecretKey)
 //*****************force test mode until live */
 //  strMode = "test"
 //******************************************** */
-
-  var stripeKey;
+   var stripeKey;
   var stripeSystem = strCurrency.toLowerCase();
   if ( (stripeSystem != "usd") && (stripeSystem != "cad") ) stripeSystem = "other"
   

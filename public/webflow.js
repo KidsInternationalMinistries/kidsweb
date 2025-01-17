@@ -678,6 +678,16 @@ function OnLoadInitialize() {
     var obj = $(top).find(".donatecustompurposewarning")
     if (!obj.length == 0) obj.css("display","block")
    })
+   
+   $(".donateamount").keyup(function () { 
+    var top = $(this).closest('.donateform');
+    var cur = top.find(".donatecurrencyselect").val().toLowerCase()
+    if (cur=="cad")
+    {
+      var obj = $(top).find(".donatecadwarning")
+      if (!obj.length == 0) obj.css("display","block")
+    }
+    })
 
 
   $(".donateonce").click(function () {
@@ -709,16 +719,23 @@ function OnLoadInitialize() {
     console.log(objCart)
   })
 
+  /*
   $(".donatecustompurposelink").click(function () {
     var top = $(this).closest(".donateform");
     $(top).find(".donatecustompurposewarning").css("display","block");
     $(top).find(".donatecustompurposelink").css("display","none")
     $(top).find(".donatecustompurposeinput").css("display","block")
   })
-  
+  */
+
   $(".donatecustompurposewarningclose").click(function () {
     var top = $(this).closest(".donateform");
     $(top).find(".donatecustompurposewarning").remove();
+  })
+  
+  $(".donatecadwarningclose").click(function () {
+    var top = $(this).closest(".donateform");
+    $(top).find(".donatecadwarning").remove();
   })
   
   $(".whatisfee").click(function () {
@@ -732,9 +749,6 @@ function OnLoadInitialize() {
     $(top).find(".donatetransactionfeedesc").css("display","none")
   })
 
-
-  
-  
 }
 
 
